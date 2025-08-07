@@ -87,17 +87,31 @@ def resumen_automatico(df):
 @app.get("/analisis")
 def api_analisis():
     empleados, departamentos, respuestas = cargar_datos_mysql()
+
+    # Mejor manejo si alguna tabla está vacía
     if empleados.empty or departamentos.empty or respuestas.empty:
-        return {"error": "No se pudieron cargar los datos."}
+        return {
+            "error": "Las tablas están vacías o no hay datos suficientes.",
+            "cantidad_empleados": len(empleados),
+            "cantidad_departamentos": len(departamentos),
+            "cantidad_respuestas": len(respuestas)
+        }
 
     respuestas_texto = respuestas[respuestas['tipo'] == 'texto']
     respuestas_completas = respuestas_texto.merge(empleados, on="id_empleado") \
                                            .merge(departamentos, on="id_departamento")
 
+    # Si no hay respuestas abiertas, tampoco caigas
+    if respuestas_texto.empty:
+        return {
+            "error": "No hay respuestas de tipo texto para analizar.",
+            "cantidad_empleados": len(empleados),
+            "cantidad_departamentos": len(departamentos),
+            "cantidad_respuestas_texto": 0
+        }
+
     respuestas_con_sentimientos = analizar_sentimientos(respuestas_completas)
-
     guardar_historico(respuestas_con_sentimientos)
-
     resumen = resumen_automatico(respuestas_con_sentimientos)
 
     return {
