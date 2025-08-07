@@ -7,6 +7,8 @@ from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from transformers import pipeline
+from sqlalchemy import create_engine
+import os
 
 load_dotenv()
 
@@ -27,15 +29,10 @@ UMBRAL_ALTO = 4.5
 
 def cargar_datos_postgres():
     try:
-        print("Intentando conectar a la base de datos...")
-        conn = psycopg2.connect(
-            host=os.environ['DB_HOST'],
-            user=os.environ['DB_USER'],
-            password=os.environ['DB_PASSWORD'],
-            dbname=os.environ['DB_NAME'],
-            port=int(os.environ['DB_PORT'])
+        print("Intentando conectar a la base de datos con SQLAlchemy...")
+        engine = create_engine(
+            f"postgresql://{os.environ['DB_USER']}:{os.environ['DB_PASSWORD']}@{os.environ['DB_HOST']}:{os.environ['DB_PORT']}/{os.environ['DB_NAME']}"
         )
-        print("Conexión exitosa.")
 
         empleados = pd.read_sql("""
             SELECT e.id_empleado, e.nombre, e.id_departamento, e.id_empresa,
@@ -43,7 +40,7 @@ def cargar_datos_postgres():
             FROM empleado e
             JOIN departamento d ON e.id_departamento = d.id_departamento
             JOIN empresa em ON e.id_empresa = em.id_empresa
-        """, conn)
+        """, engine)
         print(f"Cargados empleados: {len(empleados)}")
 
         respuestas = pd.read_sql("""
@@ -51,11 +48,11 @@ def cargar_datos_postgres():
                    CASE WHEN p.tipo IN ('abierta', 'texto') THEN 'texto' ELSE 'numerica' END AS tipo
             FROM respuesta r
             JOIN pregunta p ON r.id_pregunta = p.id_pregunta
-        """, conn)
+        """, engine)
         print(f"Cargadas respuestas: {len(respuestas)}")
 
-        conn.close()
         return empleados, respuestas
+
     except Exception as e:
         print(f"Error al conectar o consultar la BD: {e}")
         return pd.DataFrame(), pd.DataFrame()
