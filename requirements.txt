@@ -5,4 +5,5 @@ seaborn
 transformers
 torch==2.8.0
 python-dotenv
-uvicorn
+fastapi
+uvicorn[standard]
